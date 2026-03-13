@@ -31,18 +31,20 @@ type UserStat struct {
 }
 
 // Client fetches stats from PasarGuard Node REST API using protobuf encoding.
-type Client struct{}
+type Client struct {
+	clientCert *tls.Certificate
+}
 
 // NewClient creates a new Node REST client.
-func NewClient() *Client {
-	return &Client{}
+// clientCert may be nil if mTLS is not needed.
+func NewClient(clientCert *tls.Certificate) *Client {
+	return &Client{clientCert: clientCert}
 }
 
 // GetStats fetches per-user traffic stats from a single node.
 // Returns empty slice (not error) if node has no stats.
 // Returns error on network failure, TLS error, or protobuf parse failure.
 func (c *Client) GetStats(ctx context.Context, endpoint NodeEndpoint) ([]UserStat, error) {
-	// Build TLS config.
 	tlsCfg := &tls.Config{}
 	if endpoint.ServerCA != "" {
 		pool := x509.NewCertPool()
@@ -51,7 +53,10 @@ func (c *Client) GetStats(ctx context.Context, endpoint NodeEndpoint) ([]UserSta
 		}
 		tlsCfg.RootCAs = pool
 	} else {
-		tlsCfg.InsecureSkipVerify = true // no CA provided — skip verification
+		tlsCfg.InsecureSkipVerify = true
+	}
+	if c.clientCert != nil {
+		tlsCfg.Certificates = []tls.Certificate{*c.clientCert}
 	}
 
 	httpClient := &http.Client{

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -16,6 +17,13 @@ type Config struct {
 
 	PanelBasicUser string
 	PanelBasicPass string
+
+	PanelTLSCert string
+	PanelTLSKey  string
+	PanelTLSCA   string
+
+	NodeTLSCert string
+	NodeTLSKey  string
 }
 
 func LoadFromEnv() (*Config, error) {
@@ -32,7 +40,16 @@ func LoadFromEnv() (*Config, error) {
 
 	panelPassword := os.Getenv("PANEL_PASSWORD")
 	if panelPassword == "" {
-		return nil, fmt.Errorf("PANEL_PASSWORD is required")
+		if path := os.Getenv("PANEL_PASSWORD_FILE"); path != "" {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("read PANEL_PASSWORD_FILE: %w", err)
+			}
+			panelPassword = strings.TrimRight(string(data), "\n\r")
+		}
+	}
+	if panelPassword == "" {
+		return nil, fmt.Errorf("PANEL_PASSWORD or PANEL_PASSWORD_FILE is required")
 	}
 
 	// Read optional environment variables with defaults
@@ -68,5 +85,10 @@ func LoadFromEnv() (*Config, error) {
 		ScrapeTimeout:   scrapeTimeout,
 		PanelBasicUser:  os.Getenv("PANEL_BASIC_AUTH_USERNAME"),
 		PanelBasicPass:  os.Getenv("PANEL_BASIC_AUTH_PASSWORD"),
+		PanelTLSCert:    os.Getenv("PANEL_TLS_CERT_FILE"),
+		PanelTLSKey:     os.Getenv("PANEL_TLS_KEY_FILE"),
+		PanelTLSCA:      os.Getenv("PANEL_TLS_CA_FILE"),
+		NodeTLSCert:     os.Getenv("NODE_TLS_CERT_FILE"),
+		NodeTLSKey:      os.Getenv("NODE_TLS_KEY_FILE"),
 	}, nil
 }

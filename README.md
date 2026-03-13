@@ -38,16 +38,30 @@ All configuration is through environment variables. No config files.
 |---|---|---|---|
 | `PANEL_URL` | **Yes** | — | PasarGuard Panel base URL (e.g. `https://panel.example.com`) |
 | `PANEL_USERNAME` | **Yes** | — | Panel admin username |
-| `PANEL_PASSWORD` | **Yes** | — | Panel admin password |
+| `PANEL_PASSWORD` | **Yes**\* | — | Panel admin password |
+| `PANEL_PASSWORD_FILE` | **Yes**\* | — | Path to file containing the Panel admin password (alternative to `PANEL_PASSWORD`) |
 | `LISTEN_ADDR` | No | `:9115` | Address and port the exporter listens on |
 | `ONLINE_THRESHOLD` | No | `2m` | Duration since last `online_at` to consider a user online (Go duration format) |
 | `SCRAPE_TIMEOUT` | No | `30s` | Maximum time for a single scrape to complete (Go duration format) |
 | `PANEL_BASIC_AUTH_USERNAME` | No | — | HTTP Basic Auth username for Panel requests (e.g. reverse proxy auth) |
 | `PANEL_BASIC_AUTH_PASSWORD` | No | — | HTTP Basic Auth password for Panel requests |
+| `PANEL_TLS_CERT_FILE` | No | — | Path to client certificate PEM file for mTLS with the Panel |
+| `PANEL_TLS_KEY_FILE` | No | — | Path to client private key PEM file for mTLS with the Panel |
+| `PANEL_TLS_CA_FILE` | No | — | Path to CA certificate PEM file to verify the Panel's server certificate |
+| `NODE_TLS_CERT_FILE` | No | — | Path to client certificate PEM file for mTLS with Nodes |
+| `NODE_TLS_KEY_FILE` | No | — | Path to client private key PEM file for mTLS with Nodes |
+
+\* One of `PANEL_PASSWORD` or `PANEL_PASSWORD_FILE` is required. `PANEL_PASSWORD` takes precedence if both are set. Trailing newlines are stripped from the file.
 
 The Panel account must have **sudo admin** privileges (required to access node API keys and stats).
 
 If your Panel is behind a reverse proxy that requires HTTP Basic Auth, set both `PANEL_BASIC_AUTH_USERNAME` and `PANEL_BASIC_AUTH_PASSWORD`. The credentials are sent as an `Authorization: Basic ...` header on every request to the Panel API, alongside the JWT Bearer token.
+
+### mTLS (Mutual TLS)
+
+To use client certificates for authentication with the Panel or Node APIs, set the corresponding `*_TLS_CERT_FILE` and `*_TLS_KEY_FILE` pairs. Panel and Node use independent cert pairs.
+
+`PANEL_TLS_CA_FILE` allows specifying a custom CA to verify the Panel's server certificate (useful for self-signed certs). Node server CAs are provided per-node via the Panel API's `server_ca` field.
 
 ## Quick Start
 

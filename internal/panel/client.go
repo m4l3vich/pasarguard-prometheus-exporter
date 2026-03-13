@@ -2,6 +2,7 @@ package panel
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,13 +28,17 @@ type Client struct {
 
 // NewClient creates a new PasarGuard Panel API client.
 // basicUser/basicPass are for HTTP Basic Auth on the transport level (e.g. reverse proxy).
-// Pass empty strings to disable.
-func NewClient(baseURL, username, password, basicUser, basicPass string) *Client {
+// Pass empty strings to disable. tlsCfg may be nil for default TLS behavior.
+func NewClient(baseURL, username, password, basicUser, basicPass string, tlsCfg *tls.Config) *Client {
+	httpClient := &http.Client{}
+	if tlsCfg != nil {
+		httpClient.Transport = &http.Transport{TLSClientConfig: tlsCfg}
+	}
 	return &Client{
 		baseURL:    strings.TrimRight(baseURL, "/"),
 		username:   username,
 		password:   password,
-		httpClient: &http.Client{},
+		httpClient: httpClient,
 		basicUser:  basicUser,
 		basicPass:  basicPass,
 	}
