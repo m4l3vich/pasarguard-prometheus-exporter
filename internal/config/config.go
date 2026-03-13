@@ -13,6 +13,9 @@ type Config struct {
 	ListenAddr      string
 	OnlineThreshold time.Duration
 	ScrapeTimeout   time.Duration
+
+	PanelBasicUser string
+	PanelBasicPass string
 }
 
 func LoadFromEnv() (*Config, error) {
@@ -63,5 +66,7 @@ func LoadFromEnv() (*Config, error) {
 		ListenAddr:      listenAddr,
 		OnlineThreshold: onlineThreshold,
 		ScrapeTimeout:   scrapeTimeout,
+		PanelBasicUser:  os.Getenv("PANEL_BASIC_AUTH_USERNAME"),
+		PanelBasicPass:  os.Getenv("PANEL_BASIC_AUTH_PASSWORD"),
 	}, nil
 }

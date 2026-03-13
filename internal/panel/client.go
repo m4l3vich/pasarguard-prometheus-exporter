@@ -20,15 +20,28 @@ type Client struct {
 	httpClient *http.Client
 	token      string
 	mu         sync.Mutex
+
+	basicUser string
+	basicPass string
 }
 
 // NewClient creates a new PasarGuard Panel API client.
-func NewClient(baseURL, username, password string) *Client {
+// basicUser/basicPass are for HTTP Basic Auth on the transport level (e.g. reverse proxy).
+// Pass empty strings to disable.
+func NewClient(baseURL, username, password, basicUser, basicPass string) *Client {
 	return &Client{
 		baseURL:    strings.TrimRight(baseURL, "/"),
 		username:   username,
 		password:   password,
 		httpClient: &http.Client{},
+		basicUser:  basicUser,
+		basicPass:  basicPass,
+	}
+}
+
+func (c *Client) setBasicAuth(req *http.Request) {
+	if c.basicUser != "" {
+		req.SetBasicAuth(c.basicUser, c.basicPass)
 	}
 }
 
@@ -48,6 +61,7 @@ func (c *Client) Authenticate(ctx context.Context) error {
 		return fmt.Errorf("authenticate: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	c.setBasicAuth(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -81,6 +95,7 @@ func (c *Client) doAuthenticated(ctx context.Context, req *http.Request) (*http.
 	c.mu.Unlock()
 
 	req.Header.Set("Authorization", "Bearer "+token)
+	c.setBasicAuth(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -106,6 +121,7 @@ func (c *Client) doAuthenticated(ctx context.Context, req *http.Request) (*http.
 			return nil, fmt.Errorf("rebuild request: %w", err)
 		}
 		retryReq.Header.Set("Authorization", "Bearer "+token)
+		c.setBasicAuth(retryReq)
 
 		resp, err = c.httpClient.Do(retryReq)
 		if err != nil {

@@ -25,7 +25,7 @@ func main() {
 	}
 
 	// 2. Create clients
-	panelClient := panel.NewClient(cfg.PanelURL, cfg.PanelUsername, cfg.PanelPassword)
+	panelClient := panel.NewClient(cfg.PanelURL, cfg.PanelUsername, cfg.PanelPassword, cfg.PanelBasicUser, cfg.PanelBasicPass)
 	nodeClient := node.NewClient()
 
 	// 3. Create collector
