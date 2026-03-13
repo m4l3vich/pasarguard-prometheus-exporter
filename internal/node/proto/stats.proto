@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package common;
+package service;
 
 option go_package = "github.com/pasarguard/pasarguard-exporter/internal/node/proto";
 
@@ -28,4 +28,8 @@ message Stat {
 
 message StatResponse {
   repeated Stat stats = 1;
+}
+
+service NodeService {
+  rpc GetStats (StatRequest) returns (StatResponse) {}
 }

@@ -97,7 +97,7 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 		endpoint := node.NodeEndpoint{
-			Address:  fmt.Sprintf("%s:%d", n.Address, n.APIPort),
+			Address:  fmt.Sprintf("%s:%d", n.Address, n.Port),
 			APIKey:   n.APIKey,
 			ServerCA: n.ServerCA,
 		}

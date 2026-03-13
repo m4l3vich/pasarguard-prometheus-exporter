@@ -83,7 +83,7 @@ type StatRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Reset_        bool                   `protobuf:"varint,2,opt,name=reset,proto3" json:"reset,omitempty"`
-	Type          StatType               `protobuf:"varint,3,opt,name=type,proto3,enum=common.StatType" json:"type,omitempty"`
+	Type          StatType               `protobuf:"varint,3,opt,name=type,proto3,enum=service.StatType" json:"type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -255,25 +255,27 @@ var File_internal_node_proto_stats_proto protoreflect.FileDescriptor
 
 const file_internal_node_proto_stats_proto_rawDesc = "" +
 	"\n" +
-	"\x1finternal/node/proto/stats.proto\x12\x06common\"]\n" +
+	"\x1finternal/node/proto/stats.proto\x12\aservice\"^\n" +
 	"\vStatRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
-	"\x05reset\x18\x02 \x01(\bR\x05reset\x12$\n" +
-	"\x04type\x18\x03 \x01(\x0e2\x10.common.StatTypeR\x04type\"X\n" +
+	"\x05reset\x18\x02 \x01(\bR\x05reset\x12%\n" +
+	"\x04type\x18\x03 \x01(\x0e2\x11.service.StatTypeR\x04type\"X\n" +
 	"\x04Stat\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x12\n" +
 	"\x04link\x18\x03 \x01(\tR\x04link\x12\x14\n" +
-	"\x05value\x18\x04 \x01(\x03R\x05value\"2\n" +
-	"\fStatResponse\x12\"\n" +
-	"\x05stats\x18\x01 \x03(\v2\f.common.StatR\x05stats*_\n" +
+	"\x05value\x18\x04 \x01(\x03R\x05value\"3\n" +
+	"\fStatResponse\x12#\n" +
+	"\x05stats\x18\x01 \x03(\v2\r.service.StatR\x05stats*_\n" +
 	"\bStatType\x12\r\n" +
 	"\tOutbounds\x10\x00\x12\f\n" +
 	"\bOutbound\x10\x01\x12\f\n" +
 	"\bInbounds\x10\x02\x12\v\n" +
 	"\aInbound\x10\x03\x12\r\n" +
 	"\tUsersStat\x10\x04\x12\f\n" +
-	"\bUserStat\x10\x05B?Z=github.com/pasarguard/pasarguard-exporter/internal/node/protob\x06proto3"
+	"\bUserStat\x10\x052H\n" +
+	"\vNodeService\x129\n" +
+	"\bGetStats\x12\x14.service.StatRequest\x1a\x15.service.StatResponse\"\x00B?Z=github.com/pasarguard/pasarguard-exporter/internal/node/protob\x06proto3"
 
 var (
 	file_internal_node_proto_stats_proto_rawDescOnce sync.Once
@@ -290,16 +292,18 @@ func file_internal_node_proto_stats_proto_rawDescGZIP() []byte {
 var file_internal_node_proto_stats_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_internal_node_proto_stats_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_internal_node_proto_stats_proto_goTypes = []any{
-	(StatType)(0),        // 0: common.StatType
-	(*StatRequest)(nil),  // 1: common.StatRequest
-	(*Stat)(nil),         // 2: common.Stat
-	(*StatResponse)(nil), // 3: common.StatResponse
+	(StatType)(0),        // 0: service.StatType
+	(*StatRequest)(nil),  // 1: service.StatRequest
+	(*Stat)(nil),         // 2: service.Stat
+	(*StatResponse)(nil), // 3: service.StatResponse
 }
 var file_internal_node_proto_stats_proto_depIdxs = []int32{
-	0, // 0: common.StatRequest.type:type_name -> common.StatType
-	2, // 1: common.StatResponse.stats:type_name -> common.Stat
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
+	0, // 0: service.StatRequest.type:type_name -> service.StatType
+	2, // 1: service.StatResponse.stats:type_name -> service.Stat
+	1, // 2: service.NodeService.GetStats:input_type -> service.StatRequest
+	3, // 3: service.NodeService.GetStats:output_type -> service.StatResponse
+	3, // [3:4] is the sub-list for method output_type
+	2, // [2:3] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -318,7 +322,7 @@ func file_internal_node_proto_stats_proto_init() {
 			NumEnums:      1,
 			NumMessages:   3,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_internal_node_proto_stats_proto_goTypes,
 		DependencyIndexes: file_internal_node_proto_stats_proto_depIdxs,

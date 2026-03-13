@@ -117,7 +117,7 @@ On each Prometheus scrape (`GET /metrics`):
 1. **Authenticate** with the Panel API (JWT, auto-refreshes on 401).
 2. **Fetch all users** from the Panel (paginated, 100 per page). The user list provides usernames and `online_at` timestamps.
 3. **Discover nodes** from the Panel. Each node entry includes the `api_key` and `server_ca` needed to query it.
-4. **Query each connected node** for per-user Xray traffic stats via its REST API (protobuf-encoded). Unreachable nodes are skipped — they don't fail the entire scrape.
+4. **Query each connected node** for per-user Xray traffic stats via gRPC (`NodeService.GetStats`). Unreachable nodes are skipped — they don't fail the entire scrape.
 5. **Accumulate counters** across scrapes. Because the Panel periodically resets Xray counters (`reset=true`), raw values can drop to zero at any time. The exporter reads with `reset=false` and maintains in-memory accumulators to produce monotonically increasing Prometheus counters.
 6. **Emit metrics** for every user from the Panel's user list, with traffic totals summed across all nodes.
 
@@ -135,6 +135,59 @@ This ensures `up_bytes_total` and `down_bytes_total` are always monotonically in
 ### Online Status
 
 A user is considered online (`is_online{email="..."} 1`) if their `online_at` timestamp from the Panel is within the `ONLINE_THRESHOLD` window (default: 2 minutes). Otherwise the value is `0`.
+
+## Troubleshooting
+
+### `pasarguard_up` is `0`
+
+The exporter failed to complete a scrape. Check logs for the root cause — it will be one of the errors below.
+
+### `failed to get users from panel` / `failed to get nodes from panel`
+
+The exporter couldn't reach the Panel API or the API rejected the request.
+
+**`unexpected status 401` or `unexpected status 422`**
+
+Bad credentials. Verify `PANEL_USERNAME` and `PANEL_PASSWORD` (or `PANEL_PASSWORD_FILE`) are correct. The exporter auto-refreshes the JWT on 401, so if this persists the credentials themselves are wrong.
+
+**`unexpected status 403: {"detail":"You're not allowed"}`**
+
+The Panel account lacks permissions. The nodes endpoint requires **sudo admin** privileges. Verify your account:
+
+```bash
+TOKEN=$(curl -s -X POST https://your-panel/api/admin/token \
+  -d "username=YOUR_USER&password=YOUR_PASS&grant_type=password" \
+  -H "Content-Type: application/x-www-form-urlencoded" | jq -r .access_token)
+
+curl -s https://your-panel/api/admin \
+  -H "Authorization: Bearer $TOKEN" | jq .is_sudo
+```
+
+If `is_sudo` is `false`, promote the account or use a sudo admin account.
+
+**`connection refused` / `no such host` / `TLS handshake` errors**
+
+Network issue. Verify `PANEL_URL` is reachable from where the exporter runs. If the Panel uses a self-signed certificate, set `PANEL_TLS_CA_FILE`.
+
+### `failed to get stats from node`
+
+A specific node couldn't be queried. The exporter skips unreachable nodes and still emits metrics from reachable ones — this is a warning, not a fatal error.
+
+The exporter connects to each node's gRPC port (the `port` field from the Panel, not `api_port`). Common causes:
+- Node is offline or its gRPC port is firewalled
+- TLS certificate mismatch (the node's `server_ca` from the Panel doesn't match)
+- Wrong API key (usually means the Panel's node config is stale — re-sync the node in the Panel)
+- If using mTLS for nodes, verify `NODE_TLS_CERT_FILE` / `NODE_TLS_KEY_FILE` are correct
+
+### All traffic counters are `0`
+
+- Nodes may have no active users yet
+- Verify at least one node has `"status": "connected"` in the Panel — the exporter skips nodes with other statuses
+- Check logs for `failed to get stats from node` warnings — if all nodes fail, counters stay at zero
+
+### Counters dropped after restart
+
+Expected behavior. Accumulators are in-memory. After a restart, counters reset to current Xray values. Prometheus handles this natively — `rate()` and `increase()` functions account for counter resets.
 
 ## Building
 
