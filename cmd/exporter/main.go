@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -20,13 +21,20 @@ import (
 )
 
 func main() {
-	// 1. Load config from env
+	// 1. Configure log level
+	logLevel := slog.LevelInfo
+	if strings.EqualFold(os.Getenv("LOG_LEVEL"), "debug") {
+		logLevel = slog.LevelDebug
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})))
+
+	// 2. Load config from env
 	cfg, err := config.LoadFromEnv()
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}
 
-	// 2. Build TLS configs
+	// 3. Build TLS configs
 	var panelTLS *tls.Config
 	if cfg.PanelTLSCert != "" && cfg.PanelTLSKey != "" {
 		cert, err := tlsutil.LoadClientCert(cfg.PanelTLSCert, cfg.PanelTLSKey)
@@ -55,25 +63,25 @@ func main() {
 		nodeCert = &cert
 	}
 
-	// 3. Create clients
+	// 4. Create clients
 	panelClient := panel.NewClient(cfg.PanelURL, cfg.PanelUsername, cfg.PanelPassword, cfg.PanelBasicUser, cfg.PanelBasicPass, panelTLS)
 	nodeClient := node.NewClient(nodeCert)
 
-	// 4. Create collector
+	// 5. Create collector
 	coll := collector.NewCollector(panelClient, nodeClient, cfg.OnlineThreshold, cfg.ScrapeTimeout)
 
-	// 5. Create CUSTOM Prometheus registry (NOT default — avoids Go process metrics)
+	// 6. Create CUSTOM Prometheus registry (NOT default — avoids Go process metrics)
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(coll)
 
-	// 6. Create HTTP mux with /metrics handler
+	// 7. Create HTTP mux with /metrics handler
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 
-	// 7. Start server
+	// 8. Start server
 	slog.Info("pasarguard-exporter starting", "addr", cfg.ListenAddr)
 
-	// 8. Signal handling (minimal — log and exit)
+	// 9. Signal handling (minimal — log and exit)
 	go func() {
 		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)

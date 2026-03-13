@@ -89,11 +89,14 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
+	slog.Debug("scrape context", "users", len(users), "nodes", len(nodes))
+
 	// 3. Collect per-user stats from each node.
 	// rawByNode[nodeAddr] = []UserStat — each node's Xray resets independently.
 	rawByNode := make(map[string][]node.UserStat)
 	for _, n := range nodes {
 		if n.Status != "connected" {
+			slog.Debug("skipping node", "node", n.Name, "status", n.Status)
 			continue
 		}
 		endpoint := node.NodeEndpoint{
@@ -104,8 +107,9 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 		stats, err := c.nodeClient.GetStats(ctx, endpoint)
 		if err != nil {
 			slog.Warn("failed to get stats from node", "node", n.Name, "addr", endpoint.Address, "error", err)
-			continue // skip unreachable nodes
+			continue
 		}
+		slog.Debug("node stats", "node", n.Name, "addr", endpoint.Address, "stats_count", len(stats))
 		rawByNode[n.Address] = stats
 	}
 

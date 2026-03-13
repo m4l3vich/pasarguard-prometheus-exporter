@@ -110,6 +110,19 @@ scrape_configs:
     scrape_timeout: 30s
 ```
 
+## Grafana Dashboard
+
+A pre-built Grafana dashboard is included at [`grafana/dashboard.json`](grafana/dashboard.json). Import it via **Dashboards → Import → Upload JSON file** in Grafana.
+
+The dashboard includes:
+- **Online Users** — current count and over-time graph
+- **Traffic rates** — per-user download/upload rates (bytes/sec)
+- **Total traffic** — cumulative download, upload, and combined totals
+- **Traffic per user** — horizontal bar chart with per-user breakdown
+- **User status table** — online/offline status, download, and upload per user
+
+A `User` dropdown allows filtering all panels by one or more users.
+
 ## How It Works
 
 On each Prometheus scrape (`GET /metrics`):
