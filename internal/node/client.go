@@ -96,29 +96,26 @@ func (c *Client) buildTransportCredentials(endpoint NodeEndpoint) (credentials.T
 	return credentials.NewTLS(tlsCfg), nil
 }
 
-// parseUserStats extracts per-user traffic from Xray stat entries.
+// parseUserStats extracts per-user traffic from Node gRPC Stat entries.
 //
-// Xray stat name format: "user>>>{email}>>>traffic>>>uplink" or "user>>>{email}>>>traffic>>>downlink"
-// Non-user stats (e.g. inbound/outbound) are skipped.
+// The Node's GetUsersStats RPC transforms raw Xray stat names before returning them.
+// Raw Xray format: "user>>>{email}>>>traffic>>>uplink"
+// Transformed gRPC Stat fields:
+//
+//	Name = email (e.g. "1.alice")
+//	Type = direction ("uplink" or "downlink")
+//	Link = "traffic"
+//	Value = bytes
 func parseUserStats(stats []*statpb.Stat) []UserStat {
 	byEmail := make(map[string]*UserStat)
 
 	for _, s := range stats {
-		name := s.GetName()
-		if name == "" {
+		email := cleanEmail(s.GetName())
+		if email == "" {
 			continue
 		}
 
-		parts := strings.Split(name, ">>>")
-		if len(parts) != 4 {
-			continue
-		}
-		if parts[0] != "user" {
-			continue
-		}
-
-		email := cleanEmail(parts[1])
-		direction := parts[3]
+		direction := s.GetType() // "uplink" or "downlink"
 
 		us, ok := byEmail[email]
 		if !ok {

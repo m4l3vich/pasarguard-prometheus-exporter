@@ -110,6 +110,9 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 			continue
 		}
 		slog.Debug("node stats", "node", n.Name, "addr", endpoint.Address, "stats_count", len(stats))
+		for _, s := range stats {
+			slog.Debug("node stat entry", "node", n.Name, "email", s.Email, "upload", s.Upload, "download", s.Download)
+		}
 		rawByNode[n.Address] = stats
 	}
 
