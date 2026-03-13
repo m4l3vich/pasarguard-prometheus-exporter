@@ -122,25 +122,6 @@ This ensures `up_bytes_total` and `down_bytes_total` are always monotonically in
 
 A user is considered online (`is_online{email="..."} 1`) if their `online_at` timestamp from the Panel is within the `ONLINE_THRESHOLD` window (default: 2 minutes). Otherwise the value is `0`.
 
-## Project Structure
-
-```
-cmd/exporter/main.go           Entrypoint — wires config, clients, collector, HTTP server
-internal/
-  config/config.go              Loads configuration from environment variables
-  panel/
-    client.go                   Panel API client (JWT auth, paginated users/nodes)
-    types.go                    Panel API response types (User, Node)
-  node/
-    client.go                   Node REST client (protobuf stats, TLS, email parsing)
-    proto/
-      stats.proto               Protobuf definitions (StatRequest, StatResponse)
-      stats.pb.go               Generated Go types
-  collector/
-    collector.go                Prometheus custom Collector with accumulator
-Dockerfile                      Multi-stage distroless build
-```
-
 ## Building
 
 ```bash
