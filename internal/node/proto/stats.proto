@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package common;
+
+option go_package = "github.com/pasarguard/pasarguard-exporter/internal/node/proto";
+
+enum StatType {
+  Outbounds = 0;
+  Outbound = 1;
+  Inbounds = 2;
+  Inbound = 3;
+  UsersStat = 4;
+  UserStat = 5;
+}
+
+message StatRequest {
+  string name = 1;
+  bool reset = 2;
+  StatType type = 3;
+}
+
+message Stat {
+  string name = 1;
+  string type = 2;
+  string link = 3;
+  int64 value = 4;
+}
+
+message StatResponse {
+  repeated Stat stats = 1;
+}
