@@ -11,6 +11,7 @@ type Config struct {
 	PanelURL        string
 	PanelUsername   string
 	PanelPassword   string
+	PanelAPIKey     string
 	ListenAddr      string
 	OnlineThreshold time.Duration
 	ScrapeTimeout   time.Duration
@@ -26,6 +27,23 @@ type Config struct {
 	NodeTLSKey  string
 }
 
+// readSecret returns the value of valueEnv if set, otherwise reads and
+// trims the contents of the file named by fileEnv. Returns "" if neither is set.
+func readSecret(valueEnv, fileEnv string) (string, error) {
+	if v := os.Getenv(valueEnv); v != "" {
+		return v, nil
+	}
+	path := os.Getenv(fileEnv)
+	if path == "" {
+		return "", nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read %s: %w", fileEnv, err)
+	}
+	return strings.TrimRight(string(data), "\n\r"), nil
+}
+
 func LoadFromEnv() (*Config, error) {
 	// Read required environment variables
 	panelURL := os.Getenv("PANEL_URL")
@@ -33,23 +51,26 @@ func LoadFromEnv() (*Config, error) {
 		return nil, fmt.Errorf("PANEL_URL is required")
 	}
 
-	panelUsername := os.Getenv("PANEL_USERNAME")
-	if panelUsername == "" {
-		return nil, fmt.Errorf("PANEL_USERNAME is required")
+	panelAPIKey, err := readSecret("PANEL_API_KEY", "PANEL_API_KEY_FILE")
+	if err != nil {
+		return nil, err
 	}
 
-	panelPassword := os.Getenv("PANEL_PASSWORD")
-	if panelPassword == "" {
-		if path := os.Getenv("PANEL_PASSWORD_FILE"); path != "" {
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return nil, fmt.Errorf("read PANEL_PASSWORD_FILE: %w", err)
-			}
-			panelPassword = strings.TrimRight(string(data), "\n\r")
-		}
+	panelUsername := os.Getenv("PANEL_USERNAME")
+	panelPassword, err := readSecret("PANEL_PASSWORD", "PANEL_PASSWORD_FILE")
+	if err != nil {
+		return nil, err
 	}
-	if panelPassword == "" {
-		return nil, fmt.Errorf("PANEL_PASSWORD or PANEL_PASSWORD_FILE is required")
+
+	// Either an API key or a username/password pair is required. The API key
+	// takes precedence if both are configured.
+	if panelAPIKey == "" {
+		if panelUsername == "" {
+			return nil, fmt.Errorf("PANEL_USERNAME is required (or set PANEL_API_KEY)")
+		}
+		if panelPassword == "" {
+			return nil, fmt.Errorf("PANEL_PASSWORD or PANEL_PASSWORD_FILE is required (or set PANEL_API_KEY)")
+		}
 	}
 
 	// Read optional environment variables with defaults
@@ -80,6 +101,7 @@ func LoadFromEnv() (*Config, error) {
 		PanelURL:        panelURL,
 		PanelUsername:   panelUsername,
 		PanelPassword:   panelPassword,
+		PanelAPIKey:     panelAPIKey,
 		ListenAddr:      listenAddr,
 		OnlineThreshold: onlineThreshold,
 		ScrapeTimeout:   scrapeTimeout,

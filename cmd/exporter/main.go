@@ -64,7 +64,18 @@ func main() {
 	}
 
 	// 4. Create clients
-	panelClient := panel.NewClient(cfg.PanelURL, cfg.PanelUsername, cfg.PanelPassword, cfg.PanelBasicUser, cfg.PanelBasicPass, panelTLS)
+	panelClient := panel.NewClient(cfg.PanelURL, panel.Credentials{
+		APIKey:    cfg.PanelAPIKey,
+		Username:  cfg.PanelUsername,
+		Password:  cfg.PanelPassword,
+		BasicUser: cfg.PanelBasicUser,
+		BasicPass: cfg.PanelBasicPass,
+	}, panelTLS)
+	if cfg.PanelAPIKey != "" {
+		slog.Info("panel auth mode", "mode", "api-key")
+	} else {
+		slog.Info("panel auth mode", "mode", "username-password")
+	}
 	nodeClient := node.NewClient(nodeCert)
 
 	// 5. Create collector

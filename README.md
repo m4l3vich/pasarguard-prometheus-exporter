@@ -34,10 +34,18 @@ The `email` label contains the human-readable PasarGuard username (not a numeric
 
 All configuration is through environment variables. No config files.
 
+The exporter authenticates with the Panel using either a Panel **API key** (recommended) or a
+username/password pair. API keys can be created in the Panel under Admin → API Keys — see the
+[PasarGuard API keys docs](https://docs.pasarguard.org/en/panel/api_keys/). They're revocable
+independently of the admin password, can be given an expiration date, and can optionally be scoped
+to read-only `users`/`nodes` permissions instead of inheriting the full rights of the owning admin.
+
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `PANEL_URL` | **Yes** | — | PasarGuard Panel base URL (e.g. `https://panel.example.com`) |
-| `PANEL_USERNAME` | **Yes** | — | Panel admin username |
+| `PANEL_API_KEY` | **Yes**\* | — | Panel API key (`pg_key_...`), sent as `X-Api-Key` on every request |
+| `PANEL_API_KEY_FILE` | **Yes**\* | — | Path to file containing the Panel API key (alternative to `PANEL_API_KEY`) |
+| `PANEL_USERNAME` | **Yes**\* | — | Panel admin username |
 | `PANEL_PASSWORD` | **Yes**\* | — | Panel admin password |
 | `PANEL_PASSWORD_FILE` | **Yes**\* | — | Path to file containing the Panel admin password (alternative to `PANEL_PASSWORD`) |
 | `LISTEN_ADDR` | No | `:9115` | Address and port the exporter listens on |
@@ -51,9 +59,15 @@ All configuration is through environment variables. No config files.
 | `NODE_TLS_CERT_FILE` | No | — | Path to client certificate PEM file for mTLS with Nodes |
 | `NODE_TLS_KEY_FILE` | No | — | Path to client private key PEM file for mTLS with Nodes |
 
-\* One of `PANEL_PASSWORD` or `PANEL_PASSWORD_FILE` is required. `PANEL_PASSWORD` takes precedence if both are set. Trailing newlines are stripped from the file.
+\* Either an API key (`PANEL_API_KEY`/`PANEL_API_KEY_FILE`) or a username/password pair
+(`PANEL_USERNAME` + `PANEL_PASSWORD`/`PANEL_PASSWORD_FILE`) is required. If an API key is set, it takes
+precedence and the username/password fields are ignored. Within each pair, the non-`_FILE` variable
+takes precedence if both are set, and trailing newlines are stripped from file contents.
 
-The Panel account must have **sudo admin** privileges (required to access node API keys and stats).
+The admin account backing your credentials (the Panel account itself, or the account an API key is
+scoped to / inherits from) must have **sudo admin** privileges, or equivalent custom `users`/`nodes`
+read permissions with scope "all" (required to access node API keys and stats for every user, not just
+the credential owner's own).
 
 If your Panel is behind a reverse proxy that requires HTTP Basic Auth, set both `PANEL_BASIC_AUTH_USERNAME` and `PANEL_BASIC_AUTH_PASSWORD`. The credentials are sent as an `Authorization: Basic ...` header on every request to the Panel API, alongside the JWT Bearer token.
 
@@ -70,6 +84,15 @@ To use client certificates for authentication with the Panel or Node APIs, set t
 ```bash
 docker build -t pasarguard-exporter .
 
+# Using an API key (recommended)
+docker run -d \
+  --name pasarguard-exporter \
+  -p 9115:9115 \
+  -e PANEL_URL=https://panel.example.com \
+  -e PANEL_API_KEY=pg_key_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx \
+  pasarguard-exporter
+
+# Or using username/password
 docker run -d \
   --name pasarguard-exporter \
   -p 9115:9115 \
@@ -89,8 +112,8 @@ Requires Go 1.23+.
 go build -o pasarguard-exporter ./cmd/exporter/
 
 export PANEL_URL=https://panel.example.com
-export PANEL_USERNAME=admin
-export PANEL_PASSWORD=secret
+export PANEL_API_KEY=pg_key_xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+# Or: export PANEL_USERNAME=admin; export PANEL_PASSWORD=secret
 
 ./pasarguard-exporter
 ```
@@ -127,7 +150,7 @@ A `User` dropdown allows filtering all panels by one or more users.
 
 On each Prometheus scrape (`GET /metrics`):
 
-1. **Authenticate** with the Panel API (JWT, auto-refreshes on 401).
+1. **Authenticate** with the Panel API — a static API key (recommended, no refresh needed) or username/password (JWT, auto-refreshes on 401).
 2. **Fetch all users** from the Panel (paginated, 100 per page). The user list provides usernames and `online_at` timestamps.
 3. **Discover nodes** from the Panel. Each node entry includes the `api_key` and `server_ca` needed to query it.
 4. **Query each connected node** for per-user Xray traffic stats via gRPC (`NodeService.GetStats`). Unreachable nodes are skipped — they don't fail the entire scrape.
@@ -161,13 +184,25 @@ The exporter couldn't reach the Panel API or the API rejected the request.
 
 **`unexpected status 401` or `unexpected status 422`**
 
-Bad credentials. Verify `PANEL_USERNAME` and `PANEL_PASSWORD` (or `PANEL_PASSWORD_FILE`) are correct. The exporter auto-refreshes the JWT on 401, so if this persists the credentials themselves are wrong.
+If using `PANEL_API_KEY`: the key is invalid, mistyped, revoked, or expired. Mint a new one in the Panel
+under Admin → API Keys and update `PANEL_API_KEY`/`PANEL_API_KEY_FILE` — API keys don't auto-refresh
+since there's nothing to refresh.
+
+If using `PANEL_USERNAME`/`PANEL_PASSWORD`: bad credentials. Verify they (or `PANEL_PASSWORD_FILE`) are
+correct. The exporter auto-refreshes the JWT on 401, so if this persists the credentials themselves are
+wrong.
 
 **`unexpected status 403: {"detail":"You're not allowed"}`**
 
-The Panel account lacks permissions. The nodes endpoint requires **sudo admin** privileges. Verify your account:
+The credentials lack permissions. The nodes endpoint requires **sudo admin** privileges (or, for a
+custom-scoped API key, `users.read` and `nodes.read` permissions with scope "all"). Verify your account:
 
 ```bash
+# API key
+curl -s https://your-panel/api/admin \
+  -H "X-Api-Key: $PANEL_API_KEY" | jq .is_sudo
+
+# Username/password
 TOKEN=$(curl -s -X POST https://your-panel/api/admin/token \
   -d "username=YOUR_USER&password=YOUR_PASS&grant_type=password" \
   -H "Content-Type: application/x-www-form-urlencoded" | jq -r .access_token)
@@ -176,7 +211,8 @@ curl -s https://your-panel/api/admin \
   -H "Authorization: Bearer $TOKEN" | jq .is_sudo
 ```
 
-If `is_sudo` is `false`, promote the account or use a sudo admin account.
+If `is_sudo` is `false`, promote the account, use a sudo admin account, or (for API keys) grant the key
+`users.read`/`nodes.read` permissions with scope "all".
 
 **`connection refused` / `no such host` / `TLS handshake` errors**
 

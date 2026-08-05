@@ -21,6 +21,8 @@ jobs:
         with:
           context: .
           push: true
-          tags: m4l3vich/pasarguard-exporter:latest
+          tags: |
+            m4l3vich/pasarguard-exporter:latest
+            m4l3vich/pasarguard-exporter:0.2.0
           cache-from: type=gha
           cache-to: type=gha,mode=max
